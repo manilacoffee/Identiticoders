@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<head>
+    <title>User Management Page</title>
+    <meta charset="UTF-8">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.15.1/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datetimepicker/4.7.14/js/bootstrap-datetimepicker.min.js"></script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datetimepicker/4.7.14/css/bootstrap-datetimepicker.min.css">
+    <link rel="stylesheet" href="sidebar.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <script>
+    var currentUser = null;
+    var addModVal = null;
+    window.onload = function() {
+    	
+    	// DEPARTMENT
+    	 var deptGroup = document.getElementById("department");
+    	 var option;
+    	 var req = new XMLHttpRequest();
+
+         req.onreadystatechange = function() {
+             if(req.readyState === XMLHttpRequest.DONE && req.status === 200) {
+                 console.log("Status is 200");
+                 var departments = JSON.parse(req.responseText);
+                 
+                 departments.forEach(function(department) {
+                	 option = document.createElement("option");
+                	 option.value = department.name;
+                	 option.text = department.name;
+                     deptGroup.add(option);
+                 });
+             } else {
+                 console.log("Status is " + req.status);
+             }
+         };
+
+         req.open("GET", "http://localhost:8080/assignment/rest/departments/getAll", true);
+         req.send();
+         
+         
+      // USER TYPE / ROLE
+    	 var roleGroup = document.getElementById("userType");
+    	 var req2 = new XMLHttpRequest();
+
+    	 req2.onreadystatechange = function() {
+             if(req2.readyState === XMLHttpRequest.DONE && req2.status === 200) {
+                 console.log("Status is 200");
+                 var roles = JSON.parse(req2.responseText);
+                 
+                 roles.forEach(function(role) {
+                	 option = document.createElement("option");
+                	 option.value = role.name;
+                	 option.text = role.name;
+                	 roleGroup.add(option);
+                 });
+             } else {
+                 console.log("Status is " + req2.status);
+             }
+         };
+
+         req2.open("GET", "http://localhost:8080/assignment/rest/roles/getAll", true);
+         req2.send();
+
+    };
+
+    function view(opt){
+        if (opt === "home"){
+            document.getElementById(opt).style.display = "block";
+            document.getElementById("viewUsersTab").style.display = "none";
+            document.getElementById("addModTab").style.display = "none";
+        } else if (opt === "viewUsersTab") {
+            document.getElementById(opt).style.display = "block";
+            document.getElementById("home").style.display = "none";
+            document.getElementById("addModTab").style.display = "none";
+            if (currentUser.role == "ADMIN") {
+            	listAllUsers();
+            } else if (currentUser.role == "MANAGER") {
+            	listUsersByDepartment(currentUser.department);
+            }
+            
+        } else if (opt === "addUserTab"){
+            addModVal = "add";
+            document.getElementById("addModTab").style.display = "block";
+            document.getElementById("home").style.display = "none";
+            document.getElementById("viewUsersTab").style.display = "none";        
+            // CLEAR VALUES
+            document.getElementById("userType").value = "";
+            document.getElementById("name").value = "";
+            document.getElementById("email").value = "";
+            document.getElementById("mobileNum").value = "";
+            document.getElementById("department").value = "";
+        } else {
+            addModVal = "mod";
+            viewModifyUser(currentUser);
+            document.getElementById("addModTab").style.display = "block";
+            document.getElementById("home").style.display = "none";
+            document.getElementById("viewUsersTab").style.display = "none";
+        }
+    }
+
+    function signOut(){
+        currentUser = null;
+        addModVal = null;
+        document.getElementById("inputEmail").value = "";
+        document.getElementById("sidebar-contents").style.display = "none";
+        document.getElementById("home").style.display = "none";
+        document.getElementById("viewUsersTab").style.display = "none";
+        document.getElementById("addModTab").style.display = "none";
+        document.getElementById("loginDiv").style.display = "block";
+    }
+
+    function displayUser(user) {
+        currentUser = user;
+        console.log("Current user is " + currentUser.name);
+        console.log("Name " + user.name);
+        document.getElementById("userIdVal").innerHTML = user.id;
+        document.getElementById("userTypeVal").innerHTML = user.role;
+        document.getElementById("userNameVal").innerHTML = user.name;
+        document.getElementById("userEmailVal").innerHTML = user.username;
+        document.getElementById('userNumVal').innerHTML = user.number;
+        document.getElementById('userDeptVal').innerHTML = user.department;
+        document.getElementById("sidebar-contents").style.display = "block";
+        document.getElementById("loginDiv").style.display = "none";
+        if(addModVal === null){
+        	view("home");
+        }
+
+        if (currentUser.role == "ADMIN") {
+            document.getElementById("viewTabElem").style.display = "block";
+            document.getElementById("addTabElem").style.display = "block";
+        } else if (currentUser.role == "MANAGER") {
+            document.getElementById("viewTabElem").style.display = "block";
+            document.getElementById("addTabElem").style.display = "none";
+        } else {
+        	document.getElementById("viewTabElem").style.display = "none";
+            document.getElementById("addTabElem").style.display = "none";
+        }
+    }
+
+    function getUserAccount(){
+
+        var email = document.getElementById("inputEmail").value;
+        
+        if(email === ""){
+    		alert ("Please enter an email");
+    	} else {
+
+	        var req = new XMLHttpRequest();
+	
+	        //Call a function when the state changes.
+	        req.onreadystatechange = function() {
+	            if(req.readyState === XMLHttpRequest.DONE && req.status === 200) {
+	                console.log("Status is 200");
+	                var user = JSON.parse(req.responseText);
+	                displayUser(user);
+	            } else if (req.status === 404) {
+	                console.log("Status is " + req.status+". Please enter a valid email.");    
+	            }
+	        };
+	
+	        req.open("GET", "http://localhost:8080/assignment/rest/users/getByUsername/" + email, true);
+	        req.send();
+    	}
+    };
+
+    function listAllUsers(){
+        var req = new XMLHttpRequest();
+
+        //Call a function when the state changes.
+        req.onreadystatechange = function() {
+        if(req.readyState === XMLHttpRequest.DONE && req.status === 200) {
+            console.log("Status is 200");
+            var users = JSON.parse(req.responseText);
+            createTable(users);
+        } else {
+            console.log("Status is " + req.status);
+        }
+        };
+
+        req.open("GET", "http://localhost:8080/assignment/rest/users/getAll", true);
+        req.send();            
+    };
+    
+    function listUsersByDepartment(department){
+        var req = new XMLHttpRequest();
+
+        //Call a function when the state changes.
+        req.onreadystatechange = function() {
+        if(req.readyState === XMLHttpRequest.DONE && req.status === 200) {
+            console.log("Status is 200");
+            var users = JSON.parse(req.responseText);
+            createTable(users);
+        } else {
+            console.log("Status is " + req.status);
+        }
+        };
+
+        req.open("GET", "http://localhost:8080/assignment/rest/users/getUsersByDepartment/" + department, true);
+        req.send();            
+    };
+
+    function createTable(users) {
+
+        var table = document.getElementById("userTable");
+        table.innerHTML = "";
+
+        users.forEach(function(user) {
+
+            var row = table.insertRow(-1);
+            row.setAttribute("id", "row_" + user.id);
+
+            var cell = row.insertCell(-1);
+            cell.innerHTML = user.id;
+
+            var cell = row.insertCell(-1);
+            cell.innerHTML = user.role;
+
+            var cell = row.insertCell(-1);
+            cell.innerHTML = user.name;
+
+            var cell = row.insertCell(-1);
+            cell.innerHTML = user.username;
+
+            var cell = row.insertCell(-1);
+            cell.innerHTML = user.number;
+
+            var cell = row.insertCell(-1);
+            cell.innerHTML = user.department;
+            
+            console.log("CURRENT USER ROLE: " + currentUser.role);
+
+            var cell = row.insertCell(-1);
+            var cellVal = "";
+            //cell.innerHTML =
+            cellVal = "<form>"
+            + " <div>"
+            + "  <button id='modify_" + user.id +"' onClick='modifyRequest(" + user.id + ")' type='button'>MODIFY</button><br>";
+            if (currentUser.role === "ADMIN"){
+            	cellVal += "  <button id='delete_" + user.id +"' onClick='deleteRequest(" + user.id +")' type='button'>DELETE</button><br>";
+            }
+            cellVal += " </div>"
+            + "</form>\n";
+            cell.innerHTML = cellVal;
+        });
+        var header = table.createTHead();
+        var row = header.insertRow(0);
+        var cell = row.insertCell(-1);
+        cell.innerHTML = "<b>ID</b>";
+        var cell = row.insertCell(-1);
+        cell.innerHTML = "<b>USER TYPE</b>";
+        var cell = row.insertCell(-1);
+        cell.innerHTML = "<b>NAME</b>";
+        var cell = row.insertCell(-1);
+        cell.innerHTML = "<b>EMAIL</b>";
+        var cell = row.insertCell(-1);
+        cell.innerHTML = "<b>MOBILE NUMBER</b>";
+        var cell = row.insertCell(-1);
+        cell.innerHTML = "<b>DEPARTMENT</b>";
+        var cell = row.insertCell(-1);
+        cell.innerHTML = "<b>ACTIONS</b>";
+    };
+
+    function addModUser() {
+    	if(isEmpty()){
+    		alert ("Please fill out all fields");
+    		console.log("addModVal : " + addModVal);
+    		if (addModVal === "add"){
+    			view("addUserTab");
+    		} else {
+    			var userId = document.getElementById("userInputID").value;
+    			console.log("USER ID : " + userId);
+    			modifyRequest(userId);
+    		}
+    	} else {
+	    	var fields = "";
+	    	var userId = document.getElementById("userInputID").value;
+	        var userType = document.getElementById("userType").value;
+	        var name = document.getElementById("name").value;
+	        var email = document.getElementById("email").value;
+	        var mobileNum = document.getElementById("mobileNum").value;
+	        var department = document.getElementById("department").value;
+	        
+	        console.log("USER ID : " + userId);        
+	        
+	        if (currentUser.role == "ADMIN") {
+	        	if (addModVal === "add") {
+	            	if(userType !== null && userType !== '') {
+	            		fields = fields + "role, ";
+	            	}
+	            	if(name !== null && name !== '') {
+	            		fields = fields + "name, ";
+	            	}
+	            	if(email !== null && email !== '') {
+	            		fields = fields + "email, ";
+	            	}
+	            	if(mobileNum !== null && mobileNum !== '') {
+	            		fields = fields + "number, ";
+	            	}
+	            	if(department !== null && department !== '') {
+	            		fields = fields + "department";
+	            	}
+	            	saveCallBack(fields);
+	            } else if (addModVal === "mod") {
+	            	
+	            	console.log(userId);
+	            	//var userBefore = getUserById(userId);
+	            	
+	            	var req = new XMLHttpRequest();        
+	
+	                //Call a function when the state changes.
+	                req.onreadystatechange = function() {
+	                    if(req.readyState === XMLHttpRequest.DONE && req.status === 200) {
+	                        console.log("Status is 200");
+	                        var userBefore = JSON.parse(req.responseText);
+	                        console.log("USER ROLE : " + userBefore.role);
+	                    	
+	                        if(userBefore.role !== userType) {
+	                    		fields = fields + "role, ";
+	                    	}
+	                    	if(userBefore.name !== name) {
+	                    		fields = fields + "name, ";
+	                    	}
+	                    	if(userBefore.username !== email) {
+	                    		fields = fields + "email, ";
+	                    	}
+	                    	if(userBefore.number !== mobileNum) {
+	                    		fields = fields + "number, ";
+	                    	}
+	                    	if(department !== null && department !== '') {
+	                    		fields = fields + "department";
+	                    	}
+	                    	saveCallBack(fields);
+	                    } else {
+	                        console.log("Status is " + req.status);
+	                    }
+	                };
+	
+	                req.open("GET", "http://localhost:8080/assignment/rest/users/get/" + userId, true);
+	                req.send();            	
+	            }
+	        } else if (currentUser.role == "MANAGER" || currentUser.role == "EMPLOYEE") {
+	        	//var userBefore = getUserById(userId);
+	        	
+	        	console.log(userId);
+	            	//var userBefore = getUserById(userId);
+	            	
+	            	var req = new XMLHttpRequest();        
+	
+	                //Call a function when the state changes.
+	                req.onreadystatechange = function() {
+	                    if(req.readyState === XMLHttpRequest.DONE && req.status === 200) {
+	                        console.log("Status is 200");
+	                        var userBefore = JSON.parse(req.responseText);
+	                        console.log("USER ROLE : " + userBefore.role);
+	                    	
+	                        if(userBefore.number !== mobileNum) {
+	                    		fields = fields + "number";
+	                    	}
+	                        saveCallBack(fields);
+	                    } else {
+	                        console.log("Status is " + req.status);
+	                    }
+	                };
+	
+	                req.open("GET", "http://localhost:8080/assignment/rest/users/get/" + userId, true);
+	                req.send();
+	        }
+    	}
+    }
+    
+    function saveCallBack(fields){
+    	var req = new XMLHttpRequest();
+    	var userId = document.getElementById("userInputID").value;
+        var userType = document.getElementById("userType").value;
+        var name = document.getElementById("name").value;
+        var email = document.getElementById("email").value;
+        var mobileNum = document.getElementById("mobileNum").value;
+        var department = document.getElementById("department").value;
+    	
+    	//Call a function when the state changes.
+        req.onreadystatechange = function() {
+        if(req.readyState === XMLHttpRequest.DONE && req.status === 200) {
+            alert("Request is successful");
+            console.log("Status is 200");
+            // CLEAR VALUES
+            if (currentUser.role === "ADMIN"){
+	            document.getElementById("userType").value = "";
+	            document.getElementById("name").value = "";
+	            document.getElementById("email").value = "";
+	            document.getElementById("mobileNum").value = "";
+	            document.getElementById("department").value = "";
+	            if (addModVal === "add") {
+	            	logActivity(currentUser.id, 0, addModVal, fields)
+	            } else if (addModVal === "mod") {
+	            	logActivity(currentUser.id, userId, addModVal, fields)
+	            }
+	            if (currentUser.id.toString().trim() === userId.toString().trim()){
+	            	console.log("SAME USER");
+	            	document.getElementById("inputEmail").value = email;
+	            }
+            } else if (currentUser.role === "EMPLOYEE") {
+            	logActivity(currentUser.id, currentUser.id, addModVal, fields)
+            } else if (currentUser.role === "MANAGER") {
+            	logActivity(currentUser.id, userId, addModVal, fields)
+            }
+            if(addModVal === "mod") {
+            	getUserAccount();
+            };
+        } else {
+            console.log("Status is " + req.status);
+        }
+        };
+
+        if (addModVal === "add") {
+
+            req.open("POST", "http://localhost:8080/assignment/rest/users/save?"
+                + "name=" + name
+                + "&number=" + mobileNum
+                + "&username=" + email
+                + "&department=" + department
+                + "&role=" + userType, true);
+            req.send();
+        } else {
+        	req.open("PUT", "http://localhost:8080/assignment/rest/users/update?"
+        		+ "id=" + userId
+                + "&name=" + name
+                + "&number=" + mobileNum
+                + "&username=" + email
+                + "&department=" + department
+                + "&role=" + userType, true);
+            req.send();
+        }
+    }
+
+    function viewModifyUser(user){
+        // USER VALUES
+        console.log("Modify user ID : " + user.id);
+        document.getElementById("userInputID").value = user.id;
+        document.getElementById("userType").value = user.role;
+        document.getElementById("name").value = user.name;
+        document.getElementById("email").value = user.username;
+        document.getElementById("mobileNum").value = user.number;
+        document.getElementById("department").value = user.department;
+
+        if (currentUser.role !== "ADMIN" ){
+            document.getElementById("userType").disabled = true;
+            document.getElementById("name").disabled = true;
+            document.getElementById("email").disabled = true;
+            document.getElementById("department").disabled = true;
+        } else {
+            document.getElementById("userType").disabled = false;
+            document.getElementById("name").disabled = false;
+            document.getElementById("email").disabled = false;
+            document.getElementById("department").disabled = false;
+        }
+    }
+
+    function deleteRequest(userId){
+
+        var req = new XMLHttpRequest();
+
+        //Call a function when the state changes.
+        req.onreadystatechange = function() {
+            if(req.readyState === XMLHttpRequest.DONE && req.status === 200) {
+                console.log("Status is 200");
+                alert("User has been deleted");
+                logActivity(currentUser.id, userId, "delete", "");
+                listAllUsers();
+            } else {
+                console.log("Status is " + req.status);
+            }
+        };
+
+        req.open("DELETE", "http://localhost:8080/assignment/rest/users/delete/" + userId, true);
+        req.send();
+    }
+
+    function modifyRequest(userId){
+
+        var req = new XMLHttpRequest();        
+
+        //Call a function when the state changes.
+        req.onreadystatechange = function() {
+            if(req.readyState === XMLHttpRequest.DONE && req.status === 200) {
+                console.log("Status is 200");
+                var user = JSON.parse(req.responseText);
+                viewModifyUser(user);
+                addModVal = "mod";
+                document.getElementById("addModTab").style.display = "block";
+                document.getElementById("home").style.display = "none";
+                document.getElementById("viewUsersTab").style.display = "none";
+            } else {
+                console.log("Status is " + req.status);
+            }
+        };
+
+        req.open("GET", "http://localhost:8080/assignment/rest/users/get/" + userId, true);
+        req.send(); 	
+    }
+    
+    function getUserById(userId) {
+        var req = new XMLHttpRequest();        
+
+        //Call a function when the state changes.
+        req.onreadystatechange = function() {
+            if(req.readyState === XMLHttpRequest.DONE && req.status === 200) {
+                console.log("Status is 200");
+                var user = JSON.parse(req.responseText);
+                console.log ("returned user: " + user);
+    			if (user != null ) {
+    				console.log("not null");
+    			} else {
+    				console.log("null")
+    			}
+                return user;
+            } else {
+                console.log("Status is " + req.status);
+                return null;
+            }
+        };
+
+        req.open("GET", "http://localhost:8080/assignment/rest/users/get/" + userId, true);
+        req.send();
+    }
+
+    function logActivity(changed_by, changed_to, action, field) {
+    	 var req = new XMLHttpRequest(); 
+    	 req.onreadystatechange = function() {
+             if(req.readyState === XMLHttpRequest.DONE && req.status === 200) {
+            	 console.log("Logging activity completed");
+             } else {
+                 console.log("Status is " + req.status);
+             }
+         };
+    	
+    	req.open("POST", "http://localhost:8080/assignment/rest/logs/save?"
+                + "changed_by=" + changed_by
+                + "&changed_to=" + changed_to
+                + "&action=" + action
+                + "&field=" + field, true);
+        req.send();
+    	
+    }
+    
+    function isEmpty(){
+		// Get values
+	  	if (document.getElementById("userType").value === ""){
+		    return true;
+		} else if (document.getElementById("name").value === ""){
+		    return true;
+		} else if (document.getElementById("email").value === ""){
+		    return true;
+		} else if (document.getElementById("mobileNum").value === ""){
+		    return true;
+		} else if (document.getElementById("department").value === ""){
+		    return true;
+		} else {
+		    return false;
+		}
+    }
+    </script>
+
+    <div id="wrapper">
+        <!-- Sidebar -->
+        <div id="sidebar-wrapper">
+            <div id="sidebar-contents" style="display:none;">
+            <ul class="sidebar-nav">
+                <li class="sidebar-brand">
+                    <h1 class="title">Hello there!</h1>
+                </li>
+                <li id="homeElem">
+                    <a href="#home" onclick="view('home')">User Information</a>
+                </li>
+                <li id="viewTabElem">
+                    <a href="#viewUsersTab" onclick="view('viewUsersTab')">View Users</a>
+                </li>
+                <li id="addTabElem">
+                    <a href="#addModTab" onclick="view('addUserTab')">Add User</a>
+                </li>
+                <li id="modTabElem">
+                    <a href="#addModTab" onclick="view('modifyTab')">Modify</a>
+                </li>
+                <li>
+                  <a href="#home" onclick="signOut()">Sign out</a>                    
+                </li>
+            </ul>
+            </div>
+            <div id="loginDiv">
+                <p style="color:white">Enter email id:</p>
+                <p><input type="text" id="inputEmail" name="name" required></p>
+                <p><input type="button" value="Login" onclick="getUserAccount();"/></p>
+            </div>
+        </div>
+        <!-- /#sidebar-wrapper -->
+
+        <!-- Page Content -->
+        <nav class="navbar navbar-default">  
+            <div class="container">
+                <div class="navbar-header">
+
+                </div>
+            </div>
+        </nav>
+
+<!-- ==================================================================================================================== -->
+<!-- ===================================================HOME============================================================= -->
+<!-- ==================================================================================================================== -->
+        <div id="home" class="container" style="display:none;">
+            <div class="container div_regist">
+                <div class="container regist_container" style="font-weight: bold;">
+                    ID :  <span id="userIdVal" class="form-control" style="text-align: center;text-align-last: center;"></span><br/>
+                    User type : <span id="userTypeVal" class="form-control" style="text-align: center;text-align-last: center;"></span><br/>
+                    Name :  <span id="userNameVal" class="form-control" style="text-align: center;text-align-last: center;"></span><br/>
+                    Email : <span id="userEmailVal" class="form-control" style="text-align: center;text-align-last: center;"></span><br/>
+                    Mobile number : <span id="userNumVal" class="form-control" style="text-align: center;text-align-last: center;"></span><br/>
+                    Department : <span id="userDeptVal" class="form-control" style="text-align: center;text-align-last: center;"></span><br/>
+                </div>
+            </div>
+        </div>
+
+<!-- ==================================================================================================================== -->
+<!-- ================================================VIEW USERS========================================================== -->
+<!-- ==================================================================================================================== -->
+        <div id="viewUsersTab" class="container" style="display:none;">
+            <div>
+                <table id="userTable" class="table table-bordered"></table>
+            </div>
+        </div>
+
+<!-- ==================================================================================================================== -->
+<!-- =============================================ADD/MODIFY USER======================================================== -->
+<!-- ==================================================================================================================== -->
+        <div id="addModTab" class="container" style="display:none;">
+            <div class="container div_regist">
+                <div class="container regist_container">
+                <input type="text" id="userInputID" style="display:none;" />
+                <select id="userType" class="form-control" style="text-align: center;text-align-last: center;" required>
+                    <option value="" disabled selected>Select user type</option>
+                </select><br/>
+                <input type="text" id="name" class="form-control" placeholder="Name" required/><br/>
+                <input type="text" id="email" class="form-control" placeholder="Email" required/><br/>
+                <input type="text" id="mobileNum" class="form-control" placeholder="Mobile number" required/><br/>
+                <select id="department" class="form-control" style="text-align: center;text-align-last: center;" required>
+                    <option value="" disabled selected>Select your dept</option>
+                </select><br/>
+                <input type="button" onclick="addModUser()" class="btn btn-primary" style="text-align: right;margin-left: 90px;" value="Submit"/>
+                </div>
+            </div>
+        </div>
+
+<!-- end of wrapper -->
+    </div>
+<!-- end of wrapper --> 
+
+</body>
+
